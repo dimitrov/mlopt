@@ -21,7 +21,9 @@
 # =Todo= 
 # Sort servers by score, speed 
 # Query server last_sync, num_checks, check_frequency, cutoff, completion_pct
-
+#
+# Read from file, then write to another
+# 
 
 import urllib2
 import json
@@ -51,7 +53,10 @@ class Update_ML():
                        help='show incomplete servers')
         
         p.add_argument('--sort', dest="sort_method", action="store",
-                       help="sort server list by 'score'")
+                       help="sort mirrorlist  by 'score'")
+
+        p.add_argument('--list', dest="list_method", action="store",
+                       help="list server scores/completion")
 
         p.add_argument('--v', dest="verbose", action="store_true",
                        help="show more output")
@@ -59,6 +64,9 @@ class Update_ML():
         
         self.args = p.parse_args()
         
+        if self.args.sort_method and self.args.list_method:
+            print "Pick either sort or list, not both"
+            exit(0)
     
     def msg(self, msg):
         if self.args.verbose:
@@ -95,7 +103,10 @@ class Update_ML():
         self.ml_servers_len = len(self.ml_servers)
         
         self.msg("%s servers configured" % (self.ml_servers_len))
-
+        
+        if self.ml_servers_len == 0:
+            self.msg("No servers are configured")
+            exit()
     
 
         
@@ -158,7 +169,8 @@ class Update_ML():
         final_ml = []
         
         # Sort by score, lower is better. 
-        if self.args.sort_method == "score":
+        if self.args.sort_method == "score" or self.args.list_method == "score":
+            
 
             for server in self.complete_servers:
                 # You still need the original server and the score. 
@@ -170,14 +182,22 @@ class Update_ML():
             c_keys = sorted(c_keys)
             
             # Grab the full server from the server dictionary
-            for k in c_keys:
-                final_ml.insert(0, self.complete_servers[temp[k]][1])
+            if self.args.sort_method == "score":
+                
+                for k in c_keys:
+                    final_ml.insert(0, self.complete_servers[temp[k]][1])
+                    
+                final_ml.reverse()
+                return final_ml
+                
+            # Incase they just want to list it.
+            else:
+                for k in c_keys:
+                    print "score: %s, server: %s" % (self.complete_servers[temp[k]][0]["score"],
+                                                     self.complete_servers[temp[k]][0]["url"])
+       
 
-            return final_ml
-                
-                
-            
-        
+
         # No sorting, just complete servers
         else:
             for server in self.complete_servers.keys():
@@ -199,17 +219,11 @@ class Update_ML():
                 print "Server = %s" % (line)
         
         # Otherwise write to file
-        else:
-            from cStringIO import StringIO
-                    
-            # Create the file to write
-            file_to_write = StringIO()
-                
-            for line in ml_to_write:
-                file_to_write.write("Server = %s\n" % (line))
-                    
+        else:                
             with open(path, "w") as ml:
-                ml.write(file_to_write)
+                for line in ml_to_write:
+                    ml.write("Server = %s\n" % (line))
+                
         
         self.msg("Done")
             
