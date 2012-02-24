@@ -1,0 +1,2 @@
+cp mlopt.py /usr/bin/mlopt
+chmod +x /usr/bin/mlopt
