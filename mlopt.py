@@ -17,11 +17,10 @@
 
 
 # Sorts servers for the pacman mirrorlist. 
-
-# Todo 
-# Sort servers by score, 
-# Sort by speed
-# Query server last_sync, num_checks, check_frequency, cutoff, protocol, completion_pct
+#
+# =Todo= 
+# Sort servers by score, speed 
+# Query server last_sync, num_checks, check_frequency, cutoff, completion_pct
 
 
 import urllib2
@@ -51,6 +50,9 @@ class Update_ML():
         p.add_argument('--i', dest="show_incomplete", action="store_true",
                        help='show incomplete servers')
         
+        p.add_argument('--sort', dest="sort_method", action="store",
+                       help="sort server list by 'score'")
+
         p.add_argument('--v', dest="verbose", action="store_true",
                        help="show more output")
         
@@ -62,11 +64,16 @@ class Update_ML():
         if self.args.verbose:
             print msg
 
-    def exists(self, path):
+    def exists(self, path, exit_if_false=True):
+        
         if os.path.exists(path):
             return 1
-        
-        return 0
+        else:
+            if exit_if_false:
+                print "path %s does not exist" % (path)
+                exit(1)
+            
+            return 0
 
     def parse_ml(self, path):
         """Parses the mirrorlist and returns a 
@@ -106,10 +113,8 @@ class Update_ML():
 
             
 
-    def sort_ml(self):
-        """Sorts the parsed mirrorlist"""     
-    
-        self.get_stats()
+    def sort_stats(self):
+        """Sorts the gathered statistics"""     
 
         for segment in self.json_stats["urls"]:
             
@@ -136,30 +141,86 @@ class Update_ML():
             for server in self.incomplete_servers:
                 s = self.incomplete_servers[server]
                 print "percent: %.2f server: %s" % (s["completion_pct"], s["url"])
-        
+    
 
+
+
+
+    
+    def sort_ml(self):
+        """Rearranges the server lists"""
+        
+        # Really it pulls the info 
+        # from the dictionaries and puts 
+        # them into a list ready for writting
+
+        temp = {}
+        final_ml = []
+        
+        # Sort by score, lower is better. 
+        if self.args.sort_method == "score":
+
+            for server in self.complete_servers:
+                # You still need the original server and the score. 
+                temp[self.complete_servers[server][0]["score"]] = server
+
+            # sorted() returns list in place
+            # so I make a copy
+            c_keys = temp.keys()
+            c_keys = sorted(c_keys)
+            
+            # Grab the full server from the server dictionary
+            for k in c_keys:
+                final_ml.insert(0, self.complete_servers[temp[k]][1])
+
+            return final_ml
+                
+                
+            
+        
+        # No sorting, just complete servers
+        else:
+            for server in self.complete_servers.keys():
+                final_ml.append(self.complete_servers[server][1])
+            
+            return final_ml
+
+        
 
     def write_ml(self, path):
         """Writes the new mirrorlist to file or stdout"""
         
-        if path == "-":
-            for l in self.complete_servers:
-                print "Server = %s" % (self.complete_servers[l][1])
-
-        else:
-            with open(path, "w") as to_write:
-                
-                for l in self.complete_servers:
-                    to_write.write("Server = %s\n" % (self.complete_servers[l][1]))
-                    
         
-    
+        ml_to_write = self.sort_ml()
+        
+        # If the user wants to write to stdout
+        if path == "-":
+            for line in ml_to_write:
+                print "Server = %s" % (line)
+        
+        # Otherwise write to file
+        else:
+            from cStringIO import StringIO
+                    
+            # Create the file to write
+            file_to_write = StringIO()
+                
+            for line in ml_to_write:
+                file_to_write.write("Server = %s\n" % (line))
+                    
+            with open(path, "w") as ml:
+                ml.write(file_to_write)
+        
+        self.msg("Done")
+            
     def update(self):
         self.parse_ml(self.ml_path)
+        self.get_stats()
+        self.sort_stats()
         self.sort_ml()
-        
+
         if self.args.write_dest:
-            
+
             self.write_ml(self.args.write_dest)
             
 
