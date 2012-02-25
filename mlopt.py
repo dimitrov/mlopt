@@ -57,27 +57,28 @@ class Update_ML():
         p.add_argument('--sort', dest="sort_method", action="store",
                        help="sort mirrorlist by score, last_sync, delay")
 
-        p.add_argument('--list', dest="list_method", action="store",
-                       help="list servers by score, last_sync, delay")
-
+        
         p.add_argument('--v', dest="verbose", action="store_true",
                        help="show more output")
         
         
         self.args = p.parse_args()
-        
-        if self.args.list_method and self.args.write_dest:
-            print "Don't write and list, although you can write to stdout, --w -"
-            exit(0)
-    
-        if self.args.list_method:
-            self.method = self.args.list_method
-
-        elif self.args.sort_method:
-            self.method = self.args.sort_method
-
+            
+        # Make things easier
+        self.method = self.args.sort_method
+                
+        # Change the default mirrorlist path if specified
         if self.args.read_from:
             self.ml_path = self.args.read_from
+
+        # Start it
+        self.parse_ml()
+        self.get_stats()
+        self.sort_stats()
+        
+        if self.args.sort_method:
+            self.sort_ml()
+        
 
     def msg(self, msg):
         if self.args.verbose:
@@ -167,27 +168,24 @@ class Update_ML():
                 print "percent: %.2f server: %s" % (s["completion_pct"], s["url"])
 
 
-    
+
     def sort_ml(self):
         """Rearranges the server lists"""
 
-        # Really it pulls the info 
-        # from the dictionaries and puts 
+        # Pulls info from dictionaries, sorts them, then puts 
         # them into a file_obj (cStringIO)
-
+        
         import cStringIO
 
         temp = {}
         final_ml = []
         reverse = []
-
-        file_obj = cStringIO.StringIO()
-
-        method = self.method
         
         for server in self.complete_servers:
-            # You still need the original server and the score. 
-            temp[self.complete_servers[server][0][method]] = server
+            # Grabs the method from the complete servers and assigns 
+            # server to it, for easy indexing later 
+            temp[self.complete_servers[server][0][self.method]] = server
+
 
         # Sort the keys, the keys are the *method*
         # Sorted() returns list in place
@@ -201,10 +199,14 @@ class Update_ML():
             final_ml.insert(0, self.complete_servers[temp[k]][1])
                 
         # Reverse it if needed    
-        if method in reverse:
+        if self.method in reverse:
             
             print final_ml.reverse()
-                
+        
+        # Create the file_obj only if needed. 
+        if self.args.write_dest:
+            file_obj = cStringIO.StringIO()
+        
         # Now iterate and print the sorted list
         for k in c_keys:
             
@@ -214,13 +216,13 @@ class Update_ML():
             else:
                 x = self.complete_servers[temp[k]][0]
                 
-                if method == "score":
-                    print "%s: %.2f, server: %s" % (method, 
-                                                    x[method],
+                if self.method == "score":
+                    print "%s: %.2f, server: %s" % (self.method, 
+                                                    x[self.method],
                                                     x["url"])
                 else:
-                    print "%s: %s, server: %s" % (method,
-                                                  x[method],
+                    print "%s: %s, server: %s" % (self.method,
+                                                  x[self.method],
                                                   x["url"])
                 
                                   
@@ -242,19 +244,15 @@ class Update_ML():
             with open(self.args.write_dest, "w") as ml:
                 ml.write(file_obj.getvalue())
                 
-        
+        file_obj.close()
+
         self.msg("Done")
             
-    def update(self):
-        self.parse_ml()
-        self.get_stats()
-        self.sort_stats()
-        self.sort_ml()
-
+    
             
 if __name__ == "__main__":
     ml = Update_ML()
     ml.parse_args()
-    ml.update()
+    
 
 

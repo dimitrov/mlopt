@@ -1,0 +1,21 @@
+
+
+
+Mirror list optimizer (mlopt)
+
+
+Mlopt is designed to organize your mirrorlist. It fetches JSON data from archlinux.org and uses 
+that to sort your new mirror list. The *exact* line you have in your mirror list will be used for 
+writting the new list. Mlopt will not work with incomplete servers, meaning that everything it sorts 
+will be a complete server. 
+
+
+[options]
+
+--w "Write to path"
+--r "Read from path"
+--sort "Sort by score, last_sync, delay"
+--v "Show more output"
+--i "Display incomplete servers"
+
+
