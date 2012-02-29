@@ -16,19 +16,15 @@
 
 
 
-# Sorts servers for the pacman mirrorlist. 
-#
-# =Todo= 
-# Sort servers by score, speed 
-# Query server last_sync, num_checks, check_frequency, cutoff, completion_pct
-#
-# Read from file, then write to another
-# 
+
+
 
 import urllib2
 import json
 import os
 import argparse
+import time
+
 from urlparse import urlparse
 
 
@@ -138,10 +134,8 @@ class Update_ML():
             self.msg("%s servers configured" % (self.s_total_len))
         
 
-
-
     def get_stats(self):
-        """Gets the remote server statistics"""
+        "Fetches JSON data from archlinux.org"
 
         self.msg("Fetching mirror statistsics")
 
@@ -154,7 +148,6 @@ class Update_ML():
 
 
             
-
     def sort_stats(self):
         """Sorts the gathered statistics"""     
 
@@ -173,6 +166,9 @@ class Update_ML():
 
             url = "%s://%s" % (p_url[0], p_url[1])
             
+            # For easier sorting "last_sync" we will add the epoch from segment["last_sync"]
+            #if self.method == "last_sync" and segment[self.method]:
+            #        segment["epoch"] = int(time.mktime(time.strptime(segment[self.method], "%Y-%m-%d %H:%M:%S")))
 
             if url in keys:
                 # Check to see if its complete 
@@ -198,7 +194,7 @@ class Update_ML():
 
         temp = {}
         final_ml = []
-        reverse = []
+        reverse = ["last_sync"]
         
         if self.args.show_incomplete:
             s_dict = self.incomplete_servers
@@ -207,26 +203,34 @@ class Update_ML():
             s_dict = self.complete_servers
         
         for server in s_dict:
-            # Grabs the method from the complete servers and assigns 
-            # server to it, for easy indexing later 
+            # Grabs the method from the complete/incomplete server list and assigns 
+            # a server to it, for easy indexing later
+
+            # temp[complete/incomplete list[ key ] [ segment ] method ] = key 
+            #
+            # Its used so we can use our "sorted" list with the actual list (s_dict) later
             temp[s_dict[server][0][self.method]] = server
 
 
         # Sort the keys, the keys are the *method*
         # Sorted() returns list in place
         # so I make a copy
+                
         c_keys = temp.keys()
-        c_keys = sorted(c_keys)
-            
+        
+        if self.method in reverse:
+            c_keys = sorted(c_keys, reverse=True)
+
+        else:
+            c_keys = sorted(c_keys)
+
         # Grab the full server from the server dictionary
         # and build a list with it
         for k in c_keys:
+
+            # Now add it to the list
             final_ml.insert(0, s_dict[temp[k]][1])
                 
-        # Reverse it if needed    
-        if self.method in reverse:
-            
-            print final_ml.reverse()
         
         # Create the file_obj only if needed. 
         if self.args.write_dest:
@@ -235,13 +239,14 @@ class Update_ML():
         # Now iterate and print the sorted list
         for k in c_keys:
             
+            # If we are writting to a file
             if self.args.write_dest:
                 file_obj.write("Server = %s\n" % (s_dict[temp[k]][1]))
                                
             else:
                 x = s_dict[temp[k]][0]
                 
-
+                # Better formatting 
                 if self.method == "score" and x[self.method] != None:
                     print "%s: %.2f  %s" % (self.method, 
                                                     x[self.method],
