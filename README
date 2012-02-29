@@ -11,12 +11,22 @@ writting the new list.
 
 [options]
 
---w "write to [path]
---a "append to [path]"
---r "Read from [path]"
---sort "Sort by [score], [last_sync], [delay]"
---v "Show more output"
---i "Display incomplete servers"
+usage: mlopt [-h] [--w WRITE_DEST] [--a] [--r READ_FROM] [--i]
+             [--sort SORT_METHOD] [--reverse] [--l LIMIT] [--v]
+
+Mirror list optimizer (mlopt)
+
+optional arguments:
+  -h, --help          show this help message and exit
+  --w WRITE_DEST      write servers to file
+  --a                 append servers to file
+  --r READ_FROM       read servers from path
+  --i                 show incomplete servers
+  --sort SORT_METHOD  sort mirrorlist by score, last_sync, delay
+  --reverse           reverse the sorted mirrorlist
+  --l LIMIT           number of servers to show/write
+  --v                 show more output
+
 
 
 Example usage:
