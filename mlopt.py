@@ -61,7 +61,12 @@ class Update_ML():
         p.add_argument('--sort', dest="sort_method", action="store",
                        help="sort mirrorlist by score, last_sync, delay")
 
+        p.add_argument('--reverse', dest="sort_reverse", action="store_true",
+                       help="reverse the sorted mirrorlist")
         
+        p.add_argument('--l', dest="limit", action="store", type=int,
+                       help="number of servers to show/write")
+
         p.add_argument('--v', dest="verbose", action="store_true",
                        help="show more output")
         
@@ -74,6 +79,10 @@ class Update_ML():
         # Change the default mirrorlist path if specified
         if self.args.read_from:
             self.ml_path = self.args.read_from
+
+        if self.args.limit == 0:
+            print "Nothing to do, limit is 0"
+            exit()
 
         # Start it
         self.parse_ml()
@@ -218,27 +227,35 @@ class Update_ML():
                 
         c_keys = temp.keys()
         
-        if self.method in reverse:
+        # If the user is not trying to reverse the list
+        if self.method in reverse and self.args.sort_reverse != True:
             c_keys = sorted(c_keys, reverse=True)
-
+            
+        elif self.args.sort_reverse:
+            c_keys = sorted(c_keys, reverse=True)
+        
+        # If the user is wanting to reverse with the method "last_sync" (which is
+        # automatically reversed) then don't reverse, otherwise we would just 
+        # be reversing 2x, and ending up with the original list. 
         else:
             c_keys = sorted(c_keys)
 
-        # Grab the full server from the server dictionary
-        # and build a list with it
-        for k in c_keys:
-
-            # Now add it to the list
-            final_ml.insert(0, s_dict[temp[k]][1])
                 
-        
         # Create the file_obj only if needed. 
         if self.args.write_dest:
             file_obj = cStringIO.StringIO()
         
+            
         # Now iterate and print the sorted list
+
+        counter = 0
+
         for k in c_keys:
             
+            if self.args.limit:
+                if counter >= self.args.limit:
+                    break
+
             # If we are writting to a file
             if self.args.write_dest:
                 file_obj.write("Server = %s\n" % (s_dict[temp[k]][1]))
@@ -249,13 +266,15 @@ class Update_ML():
                 # Better formatting 
                 if self.method == "score" and x[self.method] != None:
                     print "%s: %.2f  %s" % (self.method, 
-                                                    x[self.method],
-                                                    x["url"])
+                                            x[self.method],
+                                            x["url"])
                 else:
                     print "%s: %s %s" % (self.method,
-                                                  x[self.method],
-                                                  x["url"])
-                                  
+                                         x[self.method],
+                                         x["url"])
+                
+            counter += 1
+
         if self.args.write_dest:
             self.write_ml(file_obj)
                                    
