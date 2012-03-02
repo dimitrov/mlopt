@@ -30,7 +30,7 @@ from urlparse import urlparse
 
 class MirrorListOptimizer():
     def __init__(self):
-        self.MIRROR_LIST = "/etc/pacman.d/mirrorlist"
+        self.mirror_list = "/etc/pacman.d/mirrorlist"
         self.mirror_list_servers = {}
         
         self.servers_total = 0
@@ -75,7 +75,7 @@ class MirrorListOptimizer():
         self.sort_method = self.args.sort_method
                 
         if self.args.read_from:
-            self.MIRROR_LIST = self.args.read_from
+            self.mirror_list = self.args.read_from
 
         if self.args.limit == 0:
             print "Nothing to do, limit is 0"
@@ -96,8 +96,8 @@ class MirrorListOptimizer():
         """Parses the mirrorlist and returns a list of servers"""        
         self.print_message("Parsing mirrorlist")        
         
-        if os.path.exists(self.MIRROR_LIST):
-            with open(self.MIRROR_LIST, "r") as ml:
+        if os.path.exists(self.mirror_list):
+            with open(self.mirror_list, "r") as ml:
                 for line in ml:
                     line = line.strip()
                     if line.startswith("#") or line == "":
@@ -107,7 +107,7 @@ class MirrorListOptimizer():
                         self.mirror_list_servers["%s://%s" % (url[0], 
                                                  url[1])] = line.split()[2]
         else:
-             print "path %s does not exist" % (self.MIRROR_LIST)
+             print "path %s does not exist" % (self.mirror_list)
              exit(1)
 
         self.servers_total = len(self.mirror_list_servers)
