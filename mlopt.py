@@ -83,37 +83,29 @@ class MirrorListOptimizer():
             exit()
 
         # Start it
-        self.parse_ml()
-        self.get_stats()
+        self.parse_mirror_list()
+        self.get_json_data()
         self.sort_stats()
         
         if self.args.sort_method:
-            self.sort_ml()
+            self.sort_mirror_list()
         
     def print_message(self, message):
         if self.args.verbose:
             print message
 
-    def exists(self, path, exit_if_false=True):
-        if os.path.exists(path):
-            return 1
-        else:
-            if exit_if_false:
-                print "path %s does not exist" % (path)
-                exit(1)
-            
-            return 0
-
-    def parse_ml(self):
+    def parse_mirror_list(self):
         """Parses the mirrorlist and returns a 
         list with the servers"""
         
         self.print_message("Parsing mirrorlist")        
         
-        if self.exists(self.MIRROR_LIST):
+        if os.path.exists(self.MIRROR_LIST):
             with open(self.MIRROR_LIST, "r") as ml:
                 self.ml_raw = ml.read().splitlines()
-                
+        else:
+             print "path %s does not exist" % (self.MIRROR_LIST)
+
         for line in self.ml_raw:
             if line.startswith("#") or line == "":
                 continue 
@@ -121,7 +113,6 @@ class MirrorListOptimizer():
             else:
                 url = urlparse(line.split()[2])
                 self.ml_servers["%s://%s" % (url[0], url[1])] = line.split()[2]
-
 
         self.s_total_len = len(self.ml_servers)
         
@@ -137,7 +128,7 @@ class MirrorListOptimizer():
             self.print_message("%s servers configured" % (self.s_total_len))
         
 
-    def get_stats(self):
+    def get_json_data(self):
         "Fetches JSON data from archlinux.org"
 
         self.print_message("Fetching mirror statistsics")
@@ -164,10 +155,6 @@ class MirrorListOptimizer():
             p_url = urlparse(segment["url"])
             url = "%s://%s" % (p_url[0], p_url[1])
             
-            # For easier sorting "last_sync" we will add the epoch from segment["last_sync"]
-            #if self.method == "last_sync" and segment[self.method]:
-            #        segment["epoch"] = int(time.mktime(time.strptime(segment[self.method], "%Y-%m-%d %H:%M:%S")))
-
             if url in keys:
                 # Check to see if its complete 
                 if segment["completion_pct"] == 1.0: 
@@ -176,18 +163,14 @@ class MirrorListOptimizer():
                     self.complete_servers[url] = [segment, self.ml_servers[url]]
                 
                 else:
-                    self.incomplete_servers[url] = [segment, self.ml_servers[url]]
-
-                    
+                    self.incomplete_servers[url] = [segment, 
+                                                    self.ml_servers[url]]
+            
         self.print_message("%s out of %s servers are up-to-date" % 
                 (len(self.complete_servers), self.s_total_len))
                
-    def sort_ml(self):
-        """Rearranges the server lists"""
-
-        # Pulls info from dictionaries, sorts them, then puts 
-        # them into a file_obj (cStringIO)
-        
+    def sort_mirror_list(self):
+        """Rearranges the server lists""" 
         import cStringIO
 
         temp = {}
@@ -201,51 +184,25 @@ class MirrorListOptimizer():
             s_dict = self.complete_servers
         
         for server in s_dict:
-            # Grabs the method from the complete/incomplete server list and assigns 
-            # a server to it, for easy indexing later
-
-            # temp[complete/incomplete list[ key ] [ segment ] method ] = key 
-            #
-            # Its used so we can use our "sorted" list with the actual list (s_dict) later
             temp[s_dict[server][0][self.method]] = server
-
-
-        # Sort the keys, the keys are the *method*
-        # Sorted() returns list in place
-        # so I make a copy
                 
         c_keys = temp.keys()
         
-        # If the user is not trying to reverse the list
         if self.method in reverse and self.args.sort_reverse != True:
-            c_keys = sorted(c_keys, reverse=True)
-            
+            c_keys = sorted(c_keys, reverse=True)           
         elif self.args.sort_reverse:
-            c_keys = sorted(c_keys, reverse=True)
-        
-        # If the user is wanting to reverse with the method "last_sync" (which is
-        # automatically reversed) then don't reverse, otherwise we would just 
-        # be reversing 2x, and ending up with the original list. 
+            c_keys = sorted(c_keys, reverse=True)        
         else:
             c_keys = sorted(c_keys)
-
-                
-        # Create the file_obj only if needed. 
+         
         if self.args.write_dest:
             file_obj = cStringIO.StringIO()
-        
-            
-        # Now iterate and print the sorted list
-
-        counter = 0
-
-        for k in c_keys:
-            
+                    
+        for i, k in enumerate(c_keys):
             if self.args.limit:
-                if counter >= self.args.limit:
+                if i >= self.args.limit:
                     break
 
-            # If we are writting to a file
             if self.args.write_dest:
                 file_obj.write("Server = %s\n" % (s_dict[temp[k]][1]))
                                
@@ -258,26 +215,19 @@ class MirrorListOptimizer():
                                             x["url"])
                 else:
                     print "%s: %s %s" % (self.method, x[self.method], x["url"])
-                
-            counter += 1
 
         if self.args.write_dest:
-            self.write_ml(file_obj)
+            self.write_mirror_list(file_obj)
                                           
-    def write_ml(self, file_obj):
+    def write_mirror_list(self, file_obj):
         """Writes the new mirrorlist to file or stdout"""        
-
-        # If the user wants to write to stdout
         if self.args.write_dest == "-":
             for line in file_obj.getvalue().splitlines():
                 print line
-        
-        # Otherwise write to file
         else:                
             if self.args.append:
                 o_msg  = "Appending"
                 o_mode = "a"
-
             else:
                 o_msg = "Writting"
                 o_mode = "w"
