@@ -71,7 +71,6 @@ class MirrorListOptimizer():
         
         
         self.args = parser.parse_args()
-            
         self.sort_method = self.args.sort_method
                 
         if self.args.read_from:
@@ -112,15 +111,12 @@ class MirrorListOptimizer():
 
         self.servers_total = len(self.mirror_list_servers)
         
-        if self.servers_total == 0:
+        if self.servers_total > 0:
+            self.print_message('%s %s configured' % (self.servers_total,
+                "servers" if self.servers_total > 1 else "server"))
+        else:
             print "No servers configured"
             exit()
-    
-        elif self.servers_total == 1:
-            self.print_message("1 server configured")
-        
-        else:
-            self.print_message("%s servers configured" % (self.servers_total))
         
     def get_json_data(self):
         "Fetches JSON data from archlinux.org"
@@ -138,12 +134,12 @@ class MirrorListOptimizer():
         keys = []
 
         for key in self.mirror_list_servers.keys():
-            a = urlparse(key)
-            keys.append("%s://%s" % (a[0], a[1]))
+            parts = urlparse(key)
+            keys.append("%s://%s" % (parts[0], parts[1]))
                     
         for segment in self.json_data["urls"]:           
-            p_url = urlparse(segment["url"])
-            url = "%s://%s" % (p_url[0], p_url[1])
+            parts = urlparse(segment["url"])
+            url = "%s://%s" % (parts[0], parts[1])
             
             if url in keys: 
                 if segment["completion_pct"] == 1.0: 
@@ -163,13 +159,11 @@ class MirrorListOptimizer():
         import cStringIO
 
         temp = {}
-        final_ml = []
-                
+        s_dict = self.complete_servers
+
         if self.args.show_incomplete:
             s_dict = self.incomplete_servers
-        else:
-            s_dict = self.complete_servers
-        
+                
         for server in s_dict:
             temp[s_dict[server][0][self.sort_method]] = server
         
