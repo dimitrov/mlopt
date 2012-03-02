@@ -1,36 +1,31 @@
 #!/usr/bin/env python2
-
-
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
 #
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
 #
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
-
-
-
-
-import urllib2
-import json
 import os
-import argparse
 import time
+import json
+import urllib2
+import argparse
 
 from urlparse import urlparse
 
 
-class Update_ML():
+class MirrorListOptimizer():
     def __init__(self):
-        self.ml_path = "/etc/pacman.d/mirrorlist"
+        self.MIRROR_LIST = "/etc/pacman.d/mirrorlist"
         self.ml_raw = None
         self.ml_sorted = None
         self.ml_servers = {}
@@ -39,46 +34,49 @@ class Update_ML():
         self.s_complete_len = 0
         self.s_incomplete_len = 0
 
-
         self.complete_servers = {}
         self.incomplete_servers = {}
         self.json_stats = None
         self.args = None
     
     def parse_args(self):
-        p = argparse.ArgumentParser(description='Mirror list optimizer (mlopt)')
+        parser = argparse.ArgumentParser(description=
+                                         'Mirror list optimizer (mlopt)')
         
-        p.add_argument('--w', dest="write_dest", help="write servers to file")
+        parser.add_argument('--w', dest="write_dest", 
+                            help="write servers to file")
         
-        p.add_argument('--a', dest="append", action="store_true",
-                       help="append to file")
+        parser.add_argument('--a', dest="append", action="store_true",
+                            help="append to file")
         
-        p.add_argument('--r', dest="read_from", help="read servers from path")
+        parser.add_argument('--r', dest="read_from", 
+                            help="read servers from path")
         
-        p.add_argument('--i', dest="show_incomplete", action="store_true",
-                       help='show incomplete servers')
+        parser.add_argument('--i', dest="show_incomplete", action="store_true",
+                            help='show incomplete servers')
         
-        p.add_argument('--sort', dest="sort_method", action="store",
-                       help="sort mirrorlist by score, last_sync, delay")
+        parser.add_argument('--sort', dest="sort_method", action="store",
+                            help="sort mirrorlist by score, last_sync, delay")
 
-        p.add_argument('--reverse', dest="sort_reverse", action="store_true",
-                       help="reverse the sorted mirrorlist")
+        parser.add_argument('--reverse', dest="sort_reverse", 
+                            action="store_true", 
+                            help="reverse the sorted mirrorlist")
         
-        p.add_argument('--l', dest="limit", action="store", type=int,
-                       help="number of servers to show/write")
+        parser.add_argument('--l', dest="limit", action="store", type=int,
+                            help="number of servers to show/write")
 
-        p.add_argument('--v', dest="verbose", action="store_true",
-                       help="show more output")
+        parser.add_argument('--v', dest="verbose", action="store_true",
+                            help="show more output")
         
         
-        self.args = p.parse_args()
+        self.args = parser.parse_args()
             
         # Make things easier
         self.method = self.args.sort_method
                 
         # Change the default mirrorlist path if specified
         if self.args.read_from:
-            self.ml_path = self.args.read_from
+            self.MIRROR_LIST = self.args.read_from
 
         if self.args.limit == 0:
             print "Nothing to do, limit is 0"
@@ -92,14 +90,11 @@ class Update_ML():
         if self.args.sort_method:
             self.sort_ml()
         
-
-    def msg(self, msg):
+    def print_message(self, message):
         if self.args.verbose:
-            print msg
-
+            print message
 
     def exists(self, path, exit_if_false=True):
-        
         if os.path.exists(path):
             return 1
         else:
@@ -113,11 +108,10 @@ class Update_ML():
         """Parses the mirrorlist and returns a 
         list with the servers"""
         
-        self.msg("Parsing mirrorlist")        
+        self.print_message("Parsing mirrorlist")        
         
-        
-        if self.exists(self.ml_path):
-            with open(self.ml_path, "r") as ml:
+        if self.exists(self.MIRROR_LIST):
+            with open(self.MIRROR_LIST, "r") as ml:
                 self.ml_raw = ml.read().splitlines()
                 
         for line in self.ml_raw:
@@ -137,25 +131,23 @@ class Update_ML():
             exit()
     
         elif self.s_total_len == 1:
-            self.msg("1 server configured")
+            self.print_message("1 server configured")
         
         else:
-            self.msg("%s servers configured" % (self.s_total_len))
+            self.print_message("%s servers configured" % (self.s_total_len))
         
 
     def get_stats(self):
         "Fetches JSON data from archlinux.org"
 
-        self.msg("Fetching mirror statistsics")
+        self.print_message("Fetching mirror statistsics")
 
         try:
-            self.json_stats = json.loads(urllib2.urlopen("http://www.archlinux.org/mirrors/status/json/").read())
-
+            self.json_stats = json.loads(urllib2.urlopen(
+                "http://www.archlinux.org/mirrors/status/json/").read())
         except Exception, e:
             print "Could not retrieve statistics, reason: %s" % (e)
             exit(1)
-
-
             
     def sort_stats(self):
         """Sorts the gathered statistics"""     
@@ -167,12 +159,9 @@ class Update_ML():
         for key in self.ml_servers.keys():
             a = urlparse(key)
             keys.append("%s://%s" % (a[0], a[1]))
-            
-        
-        for segment in self.json_stats["urls"]:
-            
+                    
+        for segment in self.json_stats["urls"]:           
             p_url = urlparse(segment["url"])
-
             url = "%s://%s" % (p_url[0], p_url[1])
             
             # For easier sorting "last_sync" we will add the epoch from segment["last_sync"]
@@ -190,9 +179,9 @@ class Update_ML():
                     self.incomplete_servers[url] = [segment, self.ml_servers[url]]
 
                     
-        self.msg("%s out of %s servers are up-to-date" % (len(self.complete_servers), self.s_total_len))
-        
-        
+        self.print_message("%s out of %s servers are up-to-date" % 
+                (len(self.complete_servers), self.s_total_len))
+               
     def sort_ml(self):
         """Rearranges the server lists"""
 
@@ -265,20 +254,16 @@ class Update_ML():
                 
                 # Better formatting 
                 if self.method == "score" and x[self.method] != None:
-                    print "%s: %.2f  %s" % (self.method, 
-                                            x[self.method],
+                    print "%s: %.2f  %s" % (self.method, x[self.method], 
                                             x["url"])
                 else:
-                    print "%s: %s %s" % (self.method,
-                                         x[self.method],
-                                         x["url"])
+                    print "%s: %s %s" % (self.method, x[self.method], x["url"])
                 
             counter += 1
 
         if self.args.write_dest:
             self.write_ml(file_obj)
-                                   
-        
+                                          
     def write_ml(self, file_obj):
         """Writes the new mirrorlist to file or stdout"""        
 
@@ -297,20 +282,16 @@ class Update_ML():
                 o_msg = "Writting"
                 o_mode = "w"
 
-            self.msg("%s to %s" % (o_msg, self.args.write_dest))
+            self.print_message("%s to %s" % (o_msg, self.args.write_dest))
 
             with open(self.args.write_dest, o_mode) as ml:
                 ml.write(file_obj.getvalue())
                 
         file_obj.close()
 
-        self.msg("Done")
+        self.print_message("Done")
             
-    
-            
+                
 if __name__ == "__main__":
-    ml = Update_ML()
-    ml.parse_args()
-    
-
-
+    optimizer = MirrorListOptimizer()
+    optimizer.parse_args()
