@@ -1,5 +1,10 @@
 #!/usr/bin/env python2
 #
+# Mirror list optimizer (mlopt)
+#
+# Mlopt is designed to organize your mirrorlist. It fetches JSON data 
+# from archlinux.org and uses that to sort your new mirror list. The *exact* 
+# line you have in your mirror list will be used for writting the new list. 
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -71,10 +76,8 @@ class MirrorListOptimizer():
         
         self.args = parser.parse_args()
             
-        # Make things easier
-        self.method = self.args.sort_method
+        self.sort_method = self.args.sort_method
                 
-        # Change the default mirrorlist path if specified
         if self.args.read_from:
             self.MIRROR_LIST = self.args.read_from
 
@@ -82,7 +85,6 @@ class MirrorListOptimizer():
             print "Nothing to do, limit is 0"
             exit()
 
-        # Start it
         self.parse_mirror_list()
         self.get_json_data()
         self.sort_stats()
@@ -95,9 +97,7 @@ class MirrorListOptimizer():
             print message
 
     def parse_mirror_list(self):
-        """Parses the mirrorlist and returns a 
-        list with the servers"""
-        
+        """Parses the mirrorlist and returns a list of servers"""        
         self.print_message("Parsing mirrorlist")        
         
         if os.path.exists(self.MIRROR_LIST):
@@ -109,14 +109,12 @@ class MirrorListOptimizer():
         for line in self.ml_raw:
             if line.startswith("#") or line == "":
                 continue 
-
             else:
                 url = urlparse(line.split()[2])
                 self.ml_servers["%s://%s" % (url[0], url[1])] = line.split()[2]
 
         self.s_total_len = len(self.ml_servers)
         
-        # Tell the user the total
         if self.s_total_len == 0:
             print "No servers configured"
             exit()
@@ -127,10 +125,8 @@ class MirrorListOptimizer():
         else:
             self.print_message("%s servers configured" % (self.s_total_len))
         
-
     def get_json_data(self):
         "Fetches JSON data from archlinux.org"
-
         self.print_message("Fetching mirror statistsics")
 
         try:
@@ -141,12 +137,9 @@ class MirrorListOptimizer():
             exit(1)
             
     def sort_stats(self):
-        """Sorts the gathered statistics"""     
-
+        """Sorts the gathered statistics"""
         keys = []
 
-        # Reconstruct the urls from the mirrorlist
-        # so we can compare them later
         for key in self.ml_servers.keys():
             a = urlparse(key)
             keys.append("%s://%s" % (a[0], a[1]))
@@ -155,11 +148,8 @@ class MirrorListOptimizer():
             p_url = urlparse(segment["url"])
             url = "%s://%s" % (p_url[0], p_url[1])
             
-            if url in keys:
-                # Check to see if its complete 
+            if url in keys: 
                 if segment["completion_pct"] == 1.0: 
-
-                    # If so, store the info 
                     self.complete_servers[url] = [segment, self.ml_servers[url]]
                 
                 else:
@@ -184,11 +174,11 @@ class MirrorListOptimizer():
             s_dict = self.complete_servers
         
         for server in s_dict:
-            temp[s_dict[server][0][self.method]] = server
+            temp[s_dict[server][0][self.sort_method]] = server
                 
         c_keys = temp.keys()
         
-        if self.method in reverse and self.args.sort_reverse != True:
+        if self.sort_method in reverse and self.args.sort_reverse != True:
             c_keys = sorted(c_keys, reverse=True)           
         elif self.args.sort_reverse:
             c_keys = sorted(c_keys, reverse=True)        
@@ -209,12 +199,13 @@ class MirrorListOptimizer():
             else:
                 x = s_dict[temp[k]][0]
                 
-                # Better formatting 
-                if self.method == "score" and x[self.method] != None:
-                    print "%s: %.2f  %s" % (self.method, x[self.method], 
+                if self.sort_method == "score" and x[self.sort_method] != None:
+                    print "%s: %.2f  %s" % (self.sort_method, 
+                                            x[self.sort_method], 
                                             x["url"])
                 else:
-                    print "%s: %s %s" % (self.method, x[self.method], x["url"])
+                    print "%s: %s %s" % (self.sort_method, x[self.sort_method], 
+                                         x["url"])
 
         if self.args.write_dest:
             self.write_mirror_list(file_obj)
