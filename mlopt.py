@@ -31,17 +31,14 @@ from urlparse import urlparse
 class MirrorListOptimizer():
     def __init__(self):
         self.MIRROR_LIST = "/etc/pacman.d/mirrorlist"
-        self.ml_raw = None
         self.ml_sorted = None
         self.ml_servers = {}
         
-        self.s_total_len = 0
-        self.s_complete_len = 0
-        self.s_incomplete_len = 0
+        self.servers_total = 0
 
         self.complete_servers = {}
         self.incomplete_servers = {}
-        self.json_stats = None
+        self.json_data = None
         self.args = None
     
     def parse_args(self):
@@ -102,35 +99,36 @@ class MirrorListOptimizer():
         
         if os.path.exists(self.MIRROR_LIST):
             with open(self.MIRROR_LIST, "r") as ml:
-                self.ml_raw = ml.read().splitlines()
+		for line in ml:
+                    line = line.strip()
+                    if line.startswith("#") or line == "":
+                        continue 
+                    else:
+                        url = urlparse(line.split()[2])
+                        self.ml_servers["%s://%s" % (url[0], url[1])] = \
+                                        line.split()[2]
         else:
              print "path %s does not exist" % (self.MIRROR_LIST)
+             exit(1)
 
-        for line in self.ml_raw:
-            if line.startswith("#") or line == "":
-                continue 
-            else:
-                url = urlparse(line.split()[2])
-                self.ml_servers["%s://%s" % (url[0], url[1])] = line.split()[2]
-
-        self.s_total_len = len(self.ml_servers)
+        self.servers_total = len(self.ml_servers)
         
-        if self.s_total_len == 0:
+        if self.servers_total == 0:
             print "No servers configured"
             exit()
     
-        elif self.s_total_len == 1:
+        elif self.servers_total == 1:
             self.print_message("1 server configured")
         
         else:
-            self.print_message("%s servers configured" % (self.s_total_len))
+            self.print_message("%s servers configured" % (self.servers_total))
         
     def get_json_data(self):
         "Fetches JSON data from archlinux.org"
         self.print_message("Fetching mirror statistsics")
 
         try:
-            self.json_stats = json.loads(urllib2.urlopen(
+            self.json_data = json.loads(urllib2.urlopen(
                 "http://www.archlinux.org/mirrors/status/json/").read())
         except Exception, e:
             print "Could not retrieve statistics, reason: %s" % (e)
@@ -144,7 +142,7 @@ class MirrorListOptimizer():
             a = urlparse(key)
             keys.append("%s://%s" % (a[0], a[1]))
                     
-        for segment in self.json_stats["urls"]:           
+        for segment in self.json_data["urls"]:           
             p_url = urlparse(segment["url"])
             url = "%s://%s" % (p_url[0], p_url[1])
             
@@ -157,7 +155,7 @@ class MirrorListOptimizer():
                                                     self.ml_servers[url]]
             
         self.print_message("%s out of %s servers are up-to-date" % 
-                (len(self.complete_servers), self.s_total_len))
+                (len(self.complete_servers), self.servers_total))
                
     def sort_mirror_list(self):
         """Rearranges the server lists""" 
