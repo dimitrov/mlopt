@@ -99,7 +99,7 @@ class MirrorListOptimizer():
         
         if os.path.exists(self.MIRROR_LIST):
             with open(self.MIRROR_LIST, "r") as ml:
-		for line in ml:
+                for line in ml:
                     line = line.strip()
                     if line.startswith("#") or line == "":
                         continue 
