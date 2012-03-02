@@ -31,8 +31,7 @@ from urlparse import urlparse
 class MirrorListOptimizer():
     def __init__(self):
         self.MIRROR_LIST = "/etc/pacman.d/mirrorlist"
-        self.ml_sorted = None
-        self.ml_servers = {}
+        self.mirror_list_servers = {}
         
         self.servers_total = 0
 
@@ -105,13 +104,13 @@ class MirrorListOptimizer():
                         continue 
                     else:
                         url = urlparse(line.split()[2])
-                        self.ml_servers["%s://%s" % (url[0], url[1])] = \
-                                        line.split()[2]
+                        self.mirror_list_servers["%s://%s" % (url[0], 
+                                                 url[1])] = line.split()[2]
         else:
              print "path %s does not exist" % (self.MIRROR_LIST)
              exit(1)
 
-        self.servers_total = len(self.ml_servers)
+        self.servers_total = len(self.mirror_list_servers)
         
         if self.servers_total == 0:
             print "No servers configured"
@@ -138,7 +137,7 @@ class MirrorListOptimizer():
         """Sorts the gathered statistics"""
         keys = []
 
-        for key in self.ml_servers.keys():
+        for key in self.mirror_list_servers.keys():
             a = urlparse(key)
             keys.append("%s://%s" % (a[0], a[1]))
                     
@@ -148,11 +147,13 @@ class MirrorListOptimizer():
             
             if url in keys: 
                 if segment["completion_pct"] == 1.0: 
-                    self.complete_servers[url] = [segment, self.ml_servers[url]]
+                    self.complete_servers[url] = [segment, 
+                                                  self.mirror_list_servers[url]]
                 
                 else:
                     self.incomplete_servers[url] = [segment, 
-                                                    self.ml_servers[url]]
+                                                    self.mirror_list_servers[
+                                                    url]]
             
         self.print_message("%s out of %s servers are up-to-date" % 
                 (len(self.complete_servers), self.servers_total))
@@ -163,26 +164,22 @@ class MirrorListOptimizer():
 
         temp = {}
         final_ml = []
-        reverse = ["last_sync"]
-        
+                
         if self.args.show_incomplete:
             s_dict = self.incomplete_servers
-
         else:
             s_dict = self.complete_servers
         
         for server in s_dict:
             temp[s_dict[server][0][self.sort_method]] = server
-                
-        c_keys = temp.keys()
         
-        if self.sort_method in reverse and self.args.sort_reverse != True:
-            c_keys = sorted(c_keys, reverse=True)           
-        elif self.args.sort_reverse:
-            c_keys = sorted(c_keys, reverse=True)        
+        c_keys = temp.keys()
+
+        if self.sort_method == "last_sync":
+            c_keys.sort(reverse=True if not self.args.sort_reverse else False)
         else:
-            c_keys = sorted(c_keys)
-         
+            c_keys.sort(reverse=self.args.sort_reverse)
+                
         if self.args.write_dest:
             file_obj = cStringIO.StringIO()
                     
@@ -214,20 +211,17 @@ class MirrorListOptimizer():
             for line in file_obj.getvalue().splitlines():
                 print line
         else:                
-            if self.args.append:
-                o_msg  = "Appending"
-                o_mode = "a"
-            else:
-                o_msg = "Writting"
-                o_mode = "w"
+            message, mode = "Appending", "a" 
+            
+            if not self.args.append:
+                message, mode = "Writing", "w"
 
-            self.print_message("%s to %s" % (o_msg, self.args.write_dest))
+            self.print_message("%s to %s" % (message, self.args.write_dest))
 
-            with open(self.args.write_dest, o_mode) as ml:
+            with open(self.args.write_dest, mode) as ml:
                 ml.write(file_obj.getvalue())
                 
         file_obj.close()
-
         self.print_message("Done")
             
                 
